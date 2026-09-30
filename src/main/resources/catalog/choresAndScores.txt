@@ -1,0 +1,45 @@
+# familyChoreGame catalog
+# CATEGORY|id|Hebrew name|English name
+# CHORE|id|category id|Hebrew name|English name|points
+
+CATEGORY|living-room|סלון|Living room
+CHORE|sofas|living-room|סידור ספות|Tidy the sofas|1
+CHORE|coffee-table|living-room|סידור שולחן|Tidy the table|1
+CHORE|floor|living-room|סידור רצפה|Tidy the floor|1
+CHORE|computer-desk|living-room|סידור שולחן מחשב|Tidy the computer desk|1
+CHORE|tv-console|living-room|סידור מזנון טלוויזיה|Tidy the TV console|1
+CHORE|craft-table|living-room|סידור שולחן יצירה|Tidy the craft table|1
+
+CATEGORY|dining-play|פינת אוכל ופינת משחקים|Dining and play areas
+CHORE|dining-table|dining-play|ניגוב וניקיון שולחן אוכל|Wipe and clean the dining table|1
+CHORE|play-area|dining-play|לסדר פינת משחקים|Tidy the play area|1
+CHORE|clear-shared-items-from-table|dining-play|לפנות דברים משותפים מהשולחן|Clear shared items from the table|1
+CHORE|set-family-meal-table|dining-play|לערוך שולחן לארוחה משפחתית|Set the table for a family meal|1
+
+CATEGORY|bathroom|חדר מקלחת|Bathroom
+CHORE|laundry|bathroom|להוריד בגדים לכביסה למטה|Take clothes down to the laundry|1
+CHORE|bathroom-counter|bathroom|לסדר ולנקות את השיש|Tidy and clean the bathroom counter|2
+
+CATEGORY|kitchen|מטבח|Kitchen
+CHORE|load-dishwasher|kitchen|להעמיס מדיח|Load the dishwasher|2
+CHORE|unload-dishwasher|kitchen|לרוקן מדיח|Unload the dishwasher|2
+CHORE|clear-sink|kitchen|לפנות כיור|Clear the sink|3
+CHORE|clean-kitchen-counter|kitchen|לנקות ולסדר שיש|Clean and tidy the kitchen counter|2
+CHORE|help-prepare-family-meal|kitchen|להשתתף בהכנת ארוחה משפחתית|Help prepare a family meal|2
+CHORE|buy-groceries|kitchen|קניית מצרכים|Buy groceries|1
+CHORE|clean-stovetop|kitchen|לנקות כריים|Clean the stovetop|1
+CHORE|make-bread|kitchen|להכין לחם|Make bread|1
+CHORE|make-family-meal-salad|kitchen|להכין סלט לארוחה משפחתית|Make a salad for a family meal|2
+
+CATEGORY|toilets-laundry-room|שירותים וחדר כביסה|Toilets and laundry room
+CHORE|clean-toilets|toilets-laundry-room|לנקות אסלות|Clean the toilets|3
+CHORE|hang-laundry|toilets-laundry-room|לתלות כביסה|Hang the laundry|2
+CHORE|take-down-fold-laundry|toilets-laundry-room|להוריד כביסה מהחבל ולקפל|Take down and fold the laundry|1
+CHORE|put-laundry-away|toilets-laundry-room|לפזר כביסה בארונות|Put the laundry away|1
+
+CATEGORY|home-entrance|כניסה לבית|Home entrance
+CHORE|tidy-entrance-rug-cabinet|home-entrance|לסדר שטיח ושידה|Tidy the entrance rug and cabinet|1
+
+CATEGORY|children-rooms|חדרי ילדים|Children's rooms
+CHORE|tidy-bedroom-floor-rugs|children-rooms|לסדר ריצפה ושטיחים|Tidy the floor and rugs|1
+CHORE|change-bed-linens|children-rooms|החלפת מצעים|Change the bed linens|1

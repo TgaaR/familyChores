@@ -1,0 +1,9 @@
+logging:
+  structured:
+    format:
+      console: ecs
+  level:
+    root: INFO
+    org.familychoregame: INFO
+    org.jdbi: WARN
+    org.springframework.web: INFO

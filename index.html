@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1c756d" />
+    <meta name="description" content="A friendly weekly family chore game" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>familyChoreGame</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="familyChoreGame">
+        <span class="brand-mark" aria-hidden="true">✓</span>
+        <span>familyChoreGame</span>
+      </a>
+      <div class="header-actions">
+        <button id="installButton" class="button secondary hidden" type="button"></button>
+        <button id="languageButton" class="language-button" type="button" aria-label="Change language">English</button>
+      </div>
+    </header>
+
+    <div id="syncStatus" class="sync-status" role="status" aria-live="polite"></div>
+
+    <main id="gameView" class="hidden">
+      <section class="hero">
+        <div>
+          <p class="eyebrow" data-i18n="weeklyGame"></p>
+          <h1 data-i18n="headline"></h1>
+          <p class="hero-copy" data-i18n="subtitle"></p>
+        </div>
+      </section>
+
+      <nav class="main-tabs" role="tablist" data-i18n-aria="mainSections">
+        <button id="choresTab" class="main-tab active" type="button" role="tab"
+                aria-selected="true" aria-controls="choresPanel" data-main-tab="chores" data-i18n="chores"></button>
+        <button id="benefitsTab" class="main-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="benefitsPanel" tabindex="-1"
+                data-main-tab="benefits" data-i18n="benefits"></button>
+      </nav>
+
+      <div id="choresPanel" class="main-tab-panel" role="tabpanel" aria-labelledby="choresTab">
+        <section class="score-section" aria-labelledby="scoreTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow" data-i18n="scoreboard"></p>
+            <h2 id="scoreTitle" data-i18n="familyProgress"></h2>
+          </div>
+          <button id="manageMembersButton" class="button secondary" type="button">
+            <span aria-hidden="true">＋</span><span data-i18n="familyMembers"></span>
+          </button>
+        </div>
+        <div id="scoreCards" class="score-cards"></div>
+        </section>
+
+        <section class="board-section" aria-labelledby="boardTitle">
+        <div class="section-heading board-heading">
+          <div>
+            <p class="eyebrow" data-i18n="sundayToFriday"></p>
+            <h2 id="boardTitle" data-i18n="weeklyBoard"></h2>
+          </div>
+          <label class="member-filter">
+            <span data-i18n="show"></span>
+            <select id="memberFilter"></select>
+          </label>
+        </div>
+        <div class="board-schedule-row">
+          <div class="week-nav" aria-label="Week navigation">
+            <button id="previousWeek" class="icon-button" type="button" data-i18n-aria="previousWeek">‹</button>
+            <div>
+              <strong id="weekLabel"></strong>
+              <span id="weekStatus" class="week-status"></span>
+              <button id="todayButton" class="text-button hidden" type="button" data-i18n="backToCurrentWeek"></button>
+            </div>
+            <button id="nextWeek" class="icon-button" type="button" data-i18n-aria="nextWeek">›</button>
+          </div>
+        </div>
+        <div id="weekBoard" class="week-board"></div>
+        <aside class="saturday-card">
+          <span class="saturday-icon" aria-hidden="true">☀</span>
+          <div><strong data-i18n="saturday"></strong><p data-i18n="restDay"></p></div>
+        </aside>
+        </section>
+      </div>
+
+      <div id="benefitsPanel" class="main-tab-panel" role="tabpanel" aria-labelledby="benefitsTab" hidden>
+        <section class="benefits-section" aria-labelledby="benefitsTitle">
+        <div class="section-heading benefits-heading">
+          <div>
+            <p class="eyebrow" data-i18n="benefits"></p>
+            <h2 id="benefitsTitle" data-i18n="chooseBenefit"></h2>
+          </div>
+          <label class="member-filter">
+            <span data-i18n="forMember"></span>
+            <select id="benefitMember"></select>
+          </label>
+        </div>
+        <p id="benefitBalance" class="benefit-balance"></p>
+        <div id="benefitCards" class="benefit-cards"></div>
+        <p id="benefitError" class="form-error" role="alert"></p>
+        </section>
+      </div>
+    </main>
+
+    <dialog id="setupDialog" class="dialog setup-dialog">
+      <form id="setupForm">
+        <div class="dialog-header">
+          <div><p class="eyebrow" data-i18n="setupWelcome"></p><h2 data-i18n="setupFamily"></h2></div>
+        </div>
+        <p class="setup-copy" data-i18n="setupInstructions"></p>
+        <label><span data-i18n="familyName"></span><input id="setupFamilyName" maxlength="60" autocomplete="organization" required /></label>
+        <label><span data-i18n="defaultLanguage"></span><select id="setupLanguage" required><option value="he">עברית</option><option value="en">English</option></select></label>
+        <fieldset>
+          <legend data-i18n="initialMembers"></legend>
+          <div id="setupMembers" class="setup-members"></div>
+          <button id="addSetupMember" class="button secondary" type="button">＋ <span data-i18n="addAnotherMember"></span></button>
+        </fieldset>
+        <p id="setupError" class="form-error" role="alert"></p>
+        <button class="button primary full" type="submit" data-i18n="startFamily"></button>
+      </form>
+    </dialog>
+
+    <dialog id="taskDialog" class="dialog">
+      <form id="taskForm" method="dialog">
+        <div class="dialog-header">
+          <div><p class="eyebrow" id="taskDialogDay"></p><h2 data-i18n="chooseChore"></h2></div>
+          <button class="close-button" type="button" data-close="taskDialog" aria-label="Close">×</button>
+        </div>
+        <label><span data-i18n="familyMember"></span><select id="taskMember" required></select></label>
+        <fieldset>
+          <legend data-i18n="availableChores"></legend>
+          <div id="choreChoices" class="chore-choices"></div>
+        </fieldset>
+        <p id="taskError" class="form-error" role="alert"></p>
+        <button class="button primary full" type="submit" data-i18n="addToDay"></button>
+      </form>
+    </dialog>
+
+    <dialog id="membersDialog" class="dialog">
+      <form id="memberForm">
+        <div class="dialog-header">
+          <div><p class="eyebrow" data-i18n="yourTeam"></p><h2 data-i18n="familyMembers"></h2></div>
+          <button class="close-button" type="button" data-close="membersDialog" aria-label="Close">×</button>
+        </div>
+        <div id="membersList" class="members-list"></div>
+        <label><span data-i18n="memberName"></span><div class="inline-field"><input id="memberName" maxlength="24" autocomplete="off" required /><button class="button primary" type="submit" data-i18n="add"></button></div></label>
+        <p id="memberError" class="form-error" role="alert"></p>
+      </form>
+    </dialog>
+
+    <template id="emptyMembersTemplate">
+      <div class="empty-state"><span aria-hidden="true">👋</span><strong data-i18n="welcome"></strong><p data-i18n="addFirstMember"></p></div>
+    </template>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
