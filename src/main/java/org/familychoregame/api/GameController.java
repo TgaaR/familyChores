@@ -5,10 +5,11 @@ import static org.familychoregame.api.ApiModels.*;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import org.familychoregame.domain.Assignment;
-import org.familychoregame.domain.BenefitRedemption;
+import org.familychoregame.domain.RightRedemption;
 import org.familychoregame.domain.FamilyMember;
 import org.familychoregame.service.GameService;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -39,20 +40,24 @@ public class GameController {
     WeekBoard week(@PathVariable LocalDate weekStart) { return service.board(weekStart); }
 
     @PostMapping("/members")
+    @PreAuthorize("hasRole('PARENT')")
     @ResponseStatus(HttpStatus.CREATED)
     FamilyMember addMember(@Valid @RequestBody AddMemberRequest request) { return service.addMember(request); }
 
     @DeleteMapping("/members/{id}")
+    @PreAuthorize("hasRole('PARENT')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void archiveMember(@PathVariable String id) { service.archiveMember(id); }
 
     @PostMapping("/assignments")
+    @PreAuthorize("hasRole('PARENT')")
     @ResponseStatus(HttpStatus.CREATED)
     Assignment createAssignment(@Valid @RequestBody CreateAssignmentRequest request) {
         return service.createAssignment(request);
     }
 
     @DeleteMapping("/assignments/{id}")
+    @PreAuthorize("hasRole('PARENT')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void deleteAssignment(@PathVariable String id) { service.deleteAssignment(id); }
 
@@ -61,9 +66,9 @@ public class GameController {
         return service.setCompletion(id, request);
     }
 
-    @PostMapping("/benefit-redemptions")
+    @PostMapping("/right-redemptions")
     @ResponseStatus(HttpStatus.CREATED)
-    BenefitRedemption redeemBenefit(@Valid @RequestBody RedeemBenefitRequest request) {
-        return service.redeemBenefit(request);
+    RightRedemption redeemRight(@Valid @RequestBody RedeemRightRequest request) {
+        return service.redeemRight(request);
     }
 }

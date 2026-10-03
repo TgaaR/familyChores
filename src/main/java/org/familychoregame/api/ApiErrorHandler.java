@@ -4,12 +4,14 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
+import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -53,9 +55,19 @@ public class ApiErrorHandler {
         return response(HttpStatus.BAD_REQUEST, "malformed_request", "The request could not be parsed");
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<Map<String, Object>> accessDenied(AccessDeniedException exception) {
+        LOGGER.atWarn()
+                .addKeyValue("event", "api_request_rejected")
+                .addKeyValue("error_code", "forbidden")
+                .addKeyValue("http_status", HttpStatus.FORBIDDEN.value())
+                .log("Forbidden API request rejected");
+        return response(HttpStatus.FORBIDDEN, "forbidden", "You are not allowed to perform this action");
+    }
+
     @ExceptionHandler(UnableToExecuteStatementException.class)
     ResponseEntity<Map<String, Object>> databaseConflict(UnableToExecuteStatementException exception) {
-        if (exception.getMessage() != null && exception.getMessage().contains("SQLITE_CONSTRAINT")) {
+        if (isConstraintViolation(exception)) {
             LOGGER.atWarn()
                     .addKeyValue("event", "api_request_rejected")
                     .addKeyValue("error_code", "constraint_conflict")
@@ -65,6 +77,14 @@ public class ApiErrorHandler {
                     "The member or chore is already assigned on that date");
         }
         return unexpectedError(exception);
+    }
+
+    private boolean isConstraintViolation(Throwable exception) {
+        for (var cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof PSQLException postgres && postgres.getSQLState() != null
+                    && postgres.getSQLState().startsWith("23")) return true;
+        }
+        return false;
     }
 
     @ExceptionHandler(Exception.class)

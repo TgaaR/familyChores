@@ -18,12 +18,9 @@ import org.springframework.core.io.ClassPathResource;
 
 @SpringBootTest
 class FamilyChoreGameApplicationTest {
-    private static final String TEST_DATABASE = System.getProperty("java.io.tmpdir")
-            + "/family-chore-game-" + UUID.randomUUID() + ".db";
-
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
-        registry.add("family-chore-game.database-path", () -> TEST_DATABASE);
+        PostgresTestDatabase.configure(registry, "application");
     }
 
     @Autowired

@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -34,18 +36,17 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.security.test.context.support.WithMockUser;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
+@WithMockUser(roles = "PARENT")
 class ApiFlowIntegrationTest {
     private static final AtomicInteger NAME_SEQUENCE = new AtomicInteger();
-    private static final String TEST_DATABASE = System.getProperty("java.io.tmpdir")
-            + "/family-chore-api-" + UUID.randomUUID() + ".db";
-
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
-        registry.add("family-chore-game.database-path", () -> TEST_DATABASE);
+        PostgresTestDatabase.configure(registry, "api_flow");
     }
 
     @Autowired WebApplicationContext context;
@@ -63,7 +64,8 @@ class ApiFlowIntegrationTest {
             repository.createFamily("API Test Family", "Asia/Jerusalem", "en", java.util.List.of(), Instant.now());
             catalogSeeder.synchronize();
         }
-        mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(requestLoggingFilter).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).defaultRequest(get("/").with(csrf())).apply(springSecurity())
+                .addFilters(requestLoggingFilter).build();
     }
 
     @Test
@@ -79,10 +81,12 @@ class ApiFlowIntegrationTest {
                 .andExpect(jsonPath("$.comingWeek.mode").value("planning"));
 
         assertThat(classpathText("static/index.html")).contains("id=\"syncStatus\"");
-        assertThat(classpathText("static/app.js")).contains("api('/bootstrap')", "familyChoreGame.preferences.v2");
+        assertThat(classpathText("static/app.js")).contains(
+                "api('/bootstrap')", "familyChoreGame.preferences.v2", "XSRF-TOKEN", "X-XSRF-TOKEN");
         assertThat(classpathText("static/sw.js")).contains("startsWith('/api/')");
-        assertThat(classpathText("catalog/benefits.txt"))
-                .contains("BENEFIT|id|Hebrew name|English name|point cost|availability|daily cap");
+        assertThat(classpathText("catalog/rights.txt"))
+                .contains("id|Hebrew name|English name|point cost|availability|daily cap")
+                .doesNotContain("RIGHT|");
     }
 
     @Test
@@ -92,7 +96,7 @@ class ApiFlowIntegrationTest {
         mvc.perform(post("/api/v1/members")
                         .header(RequestLoggingFilter.REQUEST_ID_HEADER, requestId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"displayName\":\"Invalid 123\"}"))
+                        .content("{\"displayName\":\"Invalid 123\",\"role\":\"CHILD\",\"pin\":\"1234\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(header().string(RequestLoggingFilter.REQUEST_ID_HEADER, requestId))
                 .andExpect(jsonPath("$.requestId").value(requestId))
@@ -140,7 +144,7 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
-    void choresAndBenefitsAreSeparateAccessibleTabsWithChoresSelectedByDefault() throws Exception {
+    void choresAndRightsAreSeparateAccessibleTabsWithChoresSelectedByDefault() throws Exception {
         var html = classpathText("static/index.html");
         var app = classpathText("static/app.js");
 
@@ -148,14 +152,14 @@ class ApiFlowIntegrationTest {
                 .contains("role=\"tablist\"")
                 .contains("id=\"choresTab\" class=\"main-tab active\"")
                 .contains("aria-selected=\"true\" aria-controls=\"choresPanel\"")
-                .contains("id=\"benefitsPanel\" class=\"main-tab-panel\" role=\"tabpanel\"")
-                .contains("aria-labelledby=\"benefitsTab\" hidden");
+                .contains("id=\"rightsPanel\" class=\"main-tab-panel\" role=\"tabpanel\"")
+                .contains("aria-labelledby=\"rightsTab\" hidden");
         assertThat(app)
                 .contains("activeTab: 'chores'")
                 .contains("function selectMainTab(tab, focus=false)")
                 .contains("event.key==='ArrowRight'", "event.key==='Home'")
-                .contains("benefits:'זכויות'")
-                .doesNotContain("benefits:'הטבות'");
+                .contains("rights:'זכויות'")
+                .doesNotContain("rights:'הטבות'");
     }
 
     @Test
@@ -175,7 +179,7 @@ class ApiFlowIntegrationTest {
     @Test
     void memberValidationAndNormalizedUniquenessReturnStructuredErrors() throws Exception {
         mvc.perform(post("/api/v1/members").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"displayName\":\"Invalid 123\"}"))
+                        .content("{\"displayName\":\"Invalid 123\",\"role\":\"CHILD\",\"pin\":\"1234\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("invalid_member_name"));
 
@@ -352,43 +356,43 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
-    void benefitRedemptionDeductsPointsIsIdempotentAndProtectsSpentPoints() throws Exception {
+    void rightRedemptionDeductsPointsIsIdempotentAndProtectsSpentPoints() throws Exception {
         var member = repository.addMember(UUID.randomUUID().toString(), uniqueName(), uniqueName().toLowerCase(),
                 "#1c756d", Instant.now());
         var chore = repository.chore("bathroom-counter").orElseThrow();
         var assignment = repository.addAssignment(UUID.randomUUID().toString(), UUID.randomUUID().toString(),
                 member.id(), chore, weekPolicy.currentWeekStart().plusDays(1), Instant.now());
         repository.setCompletion(assignment.id(), true, 0, Instant.now()).orElseThrow();
-        var now = Instant.now().toString();
+        var now = Instant.now();
         jdbi.useHandle(handle -> handle.createUpdate("""
-                INSERT INTO benefits(id, family_id, name_he, name_en, point_cost, availability_type, daily_cap,
+                INSERT INTO rights(id, family_id, name_he, name_en, point_cost, availability_type, daily_cap,
                   active, created_at, updated_at)
-                VALUES ('test-benefit', :familyId, 'פרס', 'Test benefit', 2, 'ALL_WEEK', 10, 1, :now, :now)
-                ON CONFLICT(id) DO UPDATE SET active = 1, point_cost = 2, availability_type = 'ALL_WEEK', daily_cap = 10
+                VALUES ('test-right', :familyId, 'פרס', 'Test right', 2, 'ALL_WEEK', 10, TRUE, :now, :now)
+                ON CONFLICT(id) DO UPDATE SET active = TRUE, point_cost = 2, availability_type = 'ALL_WEEK', daily_cap = 10
                 """).bind("familyId", GameRepository.FAMILY_ID).bind("now", now).execute());
 
         var redemption = """
-                {"requestId":"benefit-retry","memberId":"%s","benefitId":"test-benefit"}
+                {"requestId":"right-retry","memberId":"%s","rightId":"test-right"}
                 """.formatted(member.id());
-        mvc.perform(post("/api/v1/benefit-redemptions").contentType(MediaType.APPLICATION_JSON).content(redemption))
+        mvc.perform(post("/api/v1/right-redemptions").contentType(MediaType.APPLICATION_JSON).content(redemption))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.pointCostSnapshot").value(2));
-        mvc.perform(post("/api/v1/benefit-redemptions").contentType(MediaType.APPLICATION_JSON).content(redemption))
+        mvc.perform(post("/api/v1/right-redemptions").contentType(MediaType.APPLICATION_JSON).content(redemption))
                 .andExpect(status().isCreated());
 
         var otherMember = createMember(uniqueName()).get("id").asText();
-        mvc.perform(post("/api/v1/benefit-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
-                        {"requestId":"benefit-retry","memberId":"%s","benefitId":"test-benefit"}
+        mvc.perform(post("/api/v1/right-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"requestId":"right-retry","memberId":"%s","rightId":"test-right"}
                         """.formatted(otherMember)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("idempotency_mismatch"));
         jdbi.useHandle(handle -> handle.createUpdate("""
-                INSERT INTO benefits(id, family_id, name_he, name_en, point_cost, availability_type, daily_cap,
+                INSERT INTO rights(id, family_id, name_he, name_en, point_cost, availability_type, daily_cap,
                   active, created_at, updated_at)
-                VALUES ('other-benefit', :familyId, 'פרס אחר', 'Other benefit', 1, 'ALL_WEEK', 10, 1, :now, :now)
-                ON CONFLICT(id) DO UPDATE SET active = 1
+                VALUES ('other-right', :familyId, 'פרס אחר', 'Other right', 1, 'ALL_WEEK', 10, TRUE, :now, :now)
+                ON CONFLICT(id) DO UPDATE SET active = TRUE
                 """).bind("familyId", GameRepository.FAMILY_ID).bind("now", now).execute());
-        mvc.perform(post("/api/v1/benefit-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
-                        {"requestId":"benefit-retry","memberId":"%s","benefitId":"other-benefit"}
+        mvc.perform(post("/api/v1/right-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"requestId":"right-retry","memberId":"%s","rightId":"other-right"}
                         """.formatted(member.id())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("idempotency_mismatch"));
@@ -399,8 +403,8 @@ class ApiFlowIntegrationTest {
                 .andExpect(jsonPath("$.balances[?(@.memberId=='" + member.id() + "')].spentPoints").value(2))
                 .andExpect(jsonPath("$.balances[?(@.memberId=='" + member.id() + "')].availablePoints").value(0));
 
-        mvc.perform(post("/api/v1/benefit-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
-                        {"requestId":"benefit-too-expensive","memberId":"%s","benefitId":"test-benefit"}
+        mvc.perform(post("/api/v1/right-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"requestId":"right-too-expensive","memberId":"%s","rightId":"test-right"}
                         """.formatted(member.id())))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("insufficient_points"));
 
@@ -410,32 +414,32 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
-    void benefitDailyCapIsEnforcedByTheServer() throws Exception {
+    void rightDailyCapIsEnforcedByTheServer() throws Exception {
         var member = repository.addMember(UUID.randomUUID().toString(), uniqueName(), uniqueName().toLowerCase(),
                 "#e47765", Instant.now());
         var chore = repository.chore("sofas").orElseThrow();
         var assignment = repository.addAssignment(UUID.randomUUID().toString(), UUID.randomUUID().toString(),
                 member.id(), chore, weekPolicy.currentWeekStart().plusDays(2), Instant.now());
         repository.setCompletion(assignment.id(), true, 0, Instant.now()).orElseThrow();
-        var now = Instant.now().toString();
+        var now = Instant.now();
         jdbi.useHandle(handle -> handle.createUpdate("""
-                INSERT INTO benefits(id, family_id, name_he, name_en, point_cost, availability_type, daily_cap,
+                INSERT INTO rights(id, family_id, name_he, name_en, point_cost, availability_type, daily_cap,
                   active, created_at, updated_at)
-                VALUES ('daily-cap-benefit', :familyId, 'פרס יומי', 'Daily benefit', 1, 'ALL_WEEK', 1, 1, :now, :now)
-                ON CONFLICT(id) DO UPDATE SET active = 1, point_cost = 1,
+                VALUES ('daily-cap-right', :familyId, 'פרס יומי', 'Daily right', 1, 'ALL_WEEK', 1, TRUE, :now, :now)
+                ON CONFLICT(id) DO UPDATE SET active = TRUE, point_cost = 1,
                   availability_type = 'ALL_WEEK', daily_cap = 1
                 """).bind("familyId", GameRepository.FAMILY_ID).bind("now", now).execute());
 
-        mvc.perform(post("/api/v1/benefit-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
-                        {"requestId":"daily-cap-first","memberId":"%s","benefitId":"daily-cap-benefit"}
+        mvc.perform(post("/api/v1/right-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"requestId":"daily-cap-first","memberId":"%s","rightId":"daily-cap-right"}
                         """.formatted(member.id())))
                 .andExpect(status().isCreated());
-        mvc.perform(post("/api/v1/benefit-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
-                        {"requestId":"daily-cap-first","memberId":"%s","benefitId":"daily-cap-benefit"}
+        mvc.perform(post("/api/v1/right-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"requestId":"daily-cap-first","memberId":"%s","rightId":"daily-cap-right"}
                         """.formatted(member.id())))
                 .andExpect(status().isCreated());
-        mvc.perform(post("/api/v1/benefit-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
-                        {"requestId":"daily-cap-second","memberId":"%s","benefitId":"daily-cap-benefit"}
+        mvc.perform(post("/api/v1/right-redemptions").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"requestId":"daily-cap-second","memberId":"%s","rightId":"daily-cap-right"}
                         """.formatted(member.id())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("daily_cap_reached"));
@@ -486,6 +490,8 @@ class ApiFlowIntegrationTest {
         }
     }
 
-    private record MemberRequest(String displayName) {}
+    private record MemberRequest(String displayName, String role, String pin) {
+        MemberRequest(String displayName) { this(displayName, "CHILD", "1234"); }
+    }
     private record AssignmentRequest(String requestId, String memberId, String choreId, LocalDate assignmentDate) {}
 }

@@ -18,12 +18,12 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Order(20)
-public class BenefitSeeder implements ApplicationRunner {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BenefitSeeder.class);
-    static final String CATALOG_PATH = "catalog/benefits.txt";
+public class RightSeeder implements ApplicationRunner {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RightSeeder.class);
+    static final String CATALOG_PATH = "catalog/rights.txt";
     private final Jdbi jdbi;
 
-    public BenefitSeeder(Jdbi jdbi) {
+    public RightSeeder(Jdbi jdbi) {
         this.jdbi = jdbi;
     }
 
@@ -40,31 +40,31 @@ public class BenefitSeeder implements ApplicationRunner {
         if (!familyExists) return;
 
         jdbi.useTransaction(handle -> {
-            handle.createUpdate("UPDATE benefits SET active = 0 WHERE family_id = :familyId")
+            handle.createUpdate("UPDATE rights SET active = FALSE WHERE family_id = :familyId")
                     .bind("familyId", GameRepository.FAMILY_ID).execute();
-            var now = Instant.now().toString();
-            for (var benefit : entries) {
+            var now = Instant.now();
+            for (var right : entries) {
                 handle.createUpdate("""
-                        INSERT INTO benefits(id, family_id, name_he, name_en, point_cost, availability_type, daily_cap,
+                        INSERT INTO rights(id, family_id, name_he, name_en, point_cost, availability_type, daily_cap,
                           active, created_at, updated_at)
-                        VALUES (:id, :familyId, :nameHe, :nameEn, :cost, :availability, :dailyCap, 1, :now, :now)
+                        VALUES (:id, :familyId, :nameHe, :nameEn, :cost, :availability, :dailyCap, TRUE, :now, :now)
                         ON CONFLICT(id) DO UPDATE SET name_he = excluded.name_he, name_en = excluded.name_en,
                           point_cost = excluded.point_cost, availability_type = excluded.availability_type,
-                          daily_cap = excluded.daily_cap, active = 1, updated_at = excluded.updated_at
-                        """).bind("id", benefit.id()).bind("familyId", GameRepository.FAMILY_ID)
-                        .bind("nameHe", benefit.nameHe()).bind("nameEn", benefit.nameEn())
-                        .bind("cost", benefit.pointCost()).bind("availability", benefit.availabilityType())
-                        .bind("dailyCap", benefit.dailyCap()).bind("now", now).execute();
+                          daily_cap = excluded.daily_cap, active = TRUE, updated_at = excluded.updated_at
+                        """).bind("id", right.id()).bind("familyId", GameRepository.FAMILY_ID)
+                        .bind("nameHe", right.nameHe()).bind("nameEn", right.nameEn())
+                        .bind("cost", right.pointCost()).bind("availability", right.availabilityType())
+                        .bind("dailyCap", right.dailyCap()).bind("now", now).execute();
             }
         });
         LOGGER.atInfo()
-                .addKeyValue("event", "benefit_catalog_synchronized")
-                .addKeyValue("benefit_count", entries.size())
-                .log("Benefit catalog synchronized");
+                .addKeyValue("event", "right_catalog_synchronized")
+                .addKeyValue("right_count", entries.size())
+                .log("Right catalog synchronized");
     }
 
-    private List<BenefitEntry> readCatalog() {
-        var benefits = new ArrayList<BenefitEntry>();
+    private List<RightEntry> readCatalog() {
+        var rights = new ArrayList<RightEntry>();
         var ids = new HashSet<String>();
         var lines = readLines();
         for (int index = 0; index < lines.size(); index++) {
@@ -72,22 +72,21 @@ public class BenefitSeeder implements ApplicationRunner {
             if (line.isEmpty() || line.startsWith("#")) continue;
             var fields = line.split("\\|", -1);
             try {
-                if (fields.length != 7) throw new IllegalArgumentException("expected 7 fields");
-                if (!"BENEFIT".equals(fields[0])) throw new IllegalArgumentException("unknown record type " + fields[0]);
-                var id = required(fields[1]);
-                if (!ids.add(id)) throw new IllegalArgumentException("duplicate benefit id " + id);
-                var availability = required(fields[5]);
+                if (fields.length != 6) throw new IllegalArgumentException("expected 6 fields");
+                var id = required(fields[0]);
+                if (!ids.add(id)) throw new IllegalArgumentException("duplicate right id " + id);
+                var availability = required(fields[4]);
                 if (!availability.equals("ALL_WEEK") && !availability.equals("WEEKEND")) {
                     throw new IllegalArgumentException("availability must be ALL_WEEK or WEEKEND");
                 }
-                benefits.add(new BenefitEntry(id, required(fields[2]), required(fields[3]),
-                        positiveInt(fields[4]), availability, positiveInt(fields[6])));
+                rights.add(new RightEntry(id, required(fields[1]), required(fields[2]),
+                        positiveInt(fields[3]), availability, positiveInt(fields[5])));
             } catch (IllegalArgumentException exception) {
                 throw new IllegalStateException("Invalid " + CATALOG_PATH + " line " + (index + 1)
                         + ": " + exception.getMessage(), exception);
             }
         }
-        return List.copyOf(benefits);
+        return List.copyOf(rights);
     }
 
     private List<String> readLines() {
@@ -110,6 +109,6 @@ public class BenefitSeeder implements ApplicationRunner {
         return parsed;
     }
 
-    private record BenefitEntry(String id, String nameHe, String nameEn, int pointCost,
+    private record RightEntry(String id, String nameHe, String nameEn, int pointCost,
                                 String availabilityType, int dailyCap) {}
 }

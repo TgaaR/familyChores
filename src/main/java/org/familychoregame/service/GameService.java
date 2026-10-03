@@ -12,16 +12,19 @@ import java.util.regex.Pattern;
 import org.familychoregame.api.ApiException;
 import org.familychoregame.config.AppProperties;
 import org.familychoregame.config.CatalogSeeder;
-import org.familychoregame.config.BenefitSeeder;
+import org.familychoregame.config.RightSeeder;
 import org.familychoregame.domain.Assignment;
-import org.familychoregame.domain.BenefitRedemption;
+import org.familychoregame.domain.RightRedemption;
 import org.familychoregame.domain.FamilyMember;
 import org.familychoregame.repository.GameRepository;
 import org.familychoregame.repository.GameRepository.NewMember;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.familychoregame.security.AuthenticatedMember;
 
 @Service
 public class GameService {
@@ -32,17 +35,20 @@ public class GameService {
     private final WeekPolicy weekPolicy;
     private final AppProperties properties;
     private final CatalogSeeder catalogSeeder;
-    private final BenefitSeeder benefitSeeder;
+    private final RightSeeder rightSeeder;
     private final SchoolCalendar schoolCalendar;
+    private final PasswordEncoder passwordEncoder;
 
     public GameService(GameRepository repository, WeekPolicy weekPolicy, AppProperties properties,
-                       CatalogSeeder catalogSeeder, BenefitSeeder benefitSeeder, SchoolCalendar schoolCalendar) {
+                       CatalogSeeder catalogSeeder, RightSeeder rightSeeder, SchoolCalendar schoolCalendar,
+                       PasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.weekPolicy = weekPolicy;
         this.properties = properties;
         this.catalogSeeder = catalogSeeder;
-        this.benefitSeeder = benefitSeeder;
+        this.rightSeeder = rightSeeder;
         this.schoolCalendar = schoolCalendar;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Bootstrap bootstrap() {
@@ -57,8 +63,8 @@ public class GameService {
         var today = LocalDate.now(properties.timezone());
         return new Bootstrap(false, profile.id(), profile.name(), properties.timezone(), today,
                 schoolCalendar.isNonSchoolDay(today), profile.defaultLanguage(),
-                repository.allMembers(), repository.categories(), repository.chores(), repository.benefits(),
-                repository.balances(), repository.benefitRedemptions(), board(weekPolicy.currentWeekStart()),
+                repository.allMembers(), repository.categories(), repository.chores(), repository.rights(),
+                repository.balances(), repository.rightRedemptions(), board(weekPolicy.currentWeekStart()),
                 board(weekPolicy.comingWeekStart()));
     }
 
@@ -70,20 +76,25 @@ public class GameService {
         var familyName = request.familyName().strip().replaceAll("\\s+", " ");
         var normalizedNames = new java.util.HashSet<String>();
         var newMembers = new java.util.ArrayList<NewMember>();
-        for (int index = 0; index < request.memberNames().size(); index++) {
-            var displayName = normalizeAndValidateMemberName(request.memberNames().get(index));
+        if (request.members().stream().noneMatch(member -> member.role().equals("PARENT"))) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "parent_required", "At least one parent is required");
+        }
+        for (int index = 0; index < request.members().size(); index++) {
+            var requestedMember = request.members().get(index);
+            var displayName = normalizeAndValidateMemberName(requestedMember.displayName());
             var normalized = normalizedName(displayName);
             if (!normalizedNames.add(normalized)) {
                 throw new ApiException(HttpStatus.CONFLICT, "duplicate_member_name",
                         "Family member names must be unique");
             }
             newMembers.add(new NewMember(UUID.randomUUID().toString(), displayName, normalized,
-                    COLORS.get(index % COLORS.size())));
+                    COLORS.get(index % COLORS.size()), requestedMember.role(),
+                    passwordEncoder.encode(requestedMember.pin())));
         }
         repository.createFamily(familyName, properties.timezone().getId(), request.defaultLanguage(),
                 List.copyOf(newMembers), Instant.now());
         catalogSeeder.synchronize();
-        benefitSeeder.synchronize();
+        rightSeeder.synchronize();
         LOGGER.atInfo()
                 .addKeyValue("event", "family_created")
                 .addKeyValue("family_id", GameRepository.FAMILY_ID)
@@ -113,7 +124,8 @@ public class GameService {
         var displayName = normalizeAndValidateMemberName(request.displayName());
         var normalized = normalizedName(displayName);
         var color = COLORS.get(repository.members().size() % COLORS.size());
-        var created = repository.addMember(UUID.randomUUID().toString(), displayName, normalized, color, Instant.now());
+        var created = repository.addMember(UUID.randomUUID().toString(), displayName, normalized, color,
+                request.role(), passwordEncoder.encode(request.pin()), Instant.now());
         LOGGER.atInfo()
                 .addKeyValue("event", "member_created")
                 .addKeyValue("member_id", created.id())
@@ -173,6 +185,7 @@ public class GameService {
 
     public Assignment setCompletion(String id, CompletionRequest request) {
         var assignment = findAssignment(id);
+        requireSelfOrParent(assignment.memberId());
         if (!weekPolicy.canComplete(assignment.assignmentDate())) {
             throw new ApiException(HttpStatus.CONFLICT, "completion_closed",
                     "Only current-week assignments can be completed");
@@ -180,7 +193,7 @@ public class GameService {
         if (!request.completed() && assignment.status().equals("completed")
                 && repository.availablePoints(assignment.memberId()) < assignment.pointsSnapshot()) {
             throw new ApiException(HttpStatus.CONFLICT, "points_already_spent",
-                    "This chore's points have already been spent on a benefit");
+                    "This chore's points have already been spent on a right");
         }
         var changed = repository.setCompletion(id, request.completed(), request.version(), Instant.now());
         if (changed.isPresent()) {
@@ -200,51 +213,52 @@ public class GameService {
                 && latest.status().equals("completed")
                 && repository.availablePoints(latest.memberId()) < latest.pointsSnapshot()) {
             throw new ApiException(HttpStatus.CONFLICT, "points_already_spent",
-                    "This chore's points have already been spent on a benefit");
+                    "This chore's points have already been spent on a right");
         }
         throw new ApiException(HttpStatus.CONFLICT, "stale_version",
                 "The assignment changed on another device; reload and retry");
     }
 
-    public BenefitRedemption redeemBenefit(RedeemBenefitRequest request) {
+    public RightRedemption redeemRight(RedeemRightRequest request) {
         requireConfiguredFamily();
-        var previousAttempt = repository.benefitRedemptionByRequestId(request.requestId());
+        requireSelfOrParent(request.memberId());
+        var previousAttempt = repository.rightRedemptionByRequestId(request.requestId());
         if (previousAttempt.isPresent()) {
             var previous = previousAttempt.get();
-            if (!previous.memberId().equals(request.memberId()) || !previous.benefitId().equals(request.benefitId())) {
+            if (!previous.memberId().equals(request.memberId()) || !previous.rightId().equals(request.rightId())) {
                 throw new ApiException(HttpStatus.CONFLICT, "idempotency_mismatch",
                         "The request ID was already used with different redemption data");
             }
             LOGGER.atInfo()
-                    .addKeyValue("event", "benefit_redemption_replayed")
+                    .addKeyValue("event", "right_redemption_replayed")
                     .addKeyValue("redemption_id", previous.id())
                     .addKeyValue("member_id", previous.memberId())
-                    .addKeyValue("benefit_id", previous.benefitId())
-                    .log("Benefit redemption replayed");
+                    .addKeyValue("right_id", previous.rightId())
+                    .log("Right redemption replayed");
             return previous;
         }
         if (!repository.activeMemberExists(request.memberId())) {
             throw notFound("member_not_found", "Active family member not found");
         }
-        var benefit = repository.benefit(request.benefitId())
-                .orElseThrow(() -> notFound("benefit_not_found", "Active benefit not found"));
+        var right = repository.right(request.rightId())
+                .orElseThrow(() -> notFound("right_not_found", "Active right not found"));
         var now = Instant.now();
         var today = now.atZone(properties.timezone()).toLocalDate();
-        if (benefit.availabilityType().equals("WEEKEND") && !schoolCalendar.isNonSchoolDay(today)) {
-            throw new ApiException(HttpStatus.CONFLICT, "benefit_not_available_today",
-                    "This benefit is available only on weekends and school vacations");
+        if (right.availabilityType().equals("WEEKEND") && !schoolCalendar.isNonSchoolDay(today)) {
+            throw new ApiException(HttpStatus.CONFLICT, "right_not_available_today",
+                    "This right is available only on weekends and school vacations");
         }
-        if (repository.redemptionsOnDate(request.memberId(), benefit.id(), today, properties.timezone())
-                >= benefit.dailyCap()) {
+        if (repository.redemptionsOnDate(request.memberId(), right.id(), today, properties.timezone())
+                >= right.dailyCap()) {
             throw new ApiException(HttpStatus.CONFLICT, "daily_cap_reached",
-                    "This benefit has reached its daily redemption limit");
+                    "This right has reached its daily redemption limit");
         }
-        var redemption = repository.redeemBenefit(UUID.randomUUID().toString(), request.requestId(), request.memberId(),
-                benefit, now, today, properties.timezone()).orElseThrow(() -> {
-                    if (repository.redemptionsOnDate(request.memberId(), benefit.id(), today, properties.timezone())
-                            >= benefit.dailyCap()) {
+        var redemption = repository.redeemRight(UUID.randomUUID().toString(), request.requestId(), request.memberId(),
+                right, now, today, properties.timezone()).orElseThrow(() -> {
+                    if (repository.redemptionsOnDate(request.memberId(), right.id(), today, properties.timezone())
+                            >= right.dailyCap()) {
                         return new ApiException(HttpStatus.CONFLICT, "daily_cap_reached",
-                                "This benefit has reached its daily redemption limit");
+                                "This right has reached its daily redemption limit");
                     }
                     if (!repository.activeMemberExists(request.memberId())) {
                         return notFound("member_not_found", "Active family member not found");
@@ -252,17 +266,17 @@ public class GameService {
                     return new ApiException(HttpStatus.CONFLICT, "insufficient_points",
                             "The family member does not have enough points");
                 });
-        if (!redemption.memberId().equals(request.memberId()) || !redemption.benefitId().equals(request.benefitId())) {
+        if (!redemption.memberId().equals(request.memberId()) || !redemption.rightId().equals(request.rightId())) {
             throw new ApiException(HttpStatus.CONFLICT, "idempotency_mismatch",
                     "The request ID was already used with different redemption data");
         }
         LOGGER.atInfo()
-                .addKeyValue("event", "benefit_redeemed")
+                .addKeyValue("event", "right_redeemed")
                 .addKeyValue("redemption_id", redemption.id())
                 .addKeyValue("member_id", redemption.memberId())
-                .addKeyValue("benefit_id", redemption.benefitId())
+                .addKeyValue("right_id", redemption.rightId())
                 .addKeyValue("point_cost", redemption.pointCostSnapshot())
-                .log("Benefit redeemed");
+                .log("Right redeemed");
         return redemption;
     }
 
@@ -297,6 +311,16 @@ public class GameService {
     private void requireConfiguredFamily() {
         if (repository.family().isEmpty()) {
             throw new ApiException(HttpStatus.CONFLICT, "family_setup_required", "Create the family first");
+        }
+    }
+
+    private void requireSelfOrParent(String memberId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_PARENT"))) return;
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedMember member)
+                || (!member.role().equals("PARENT") && !member.id().equals(memberId))) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "forbidden", "You cannot act for this family member");
         }
     }
 }

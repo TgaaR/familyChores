@@ -4,8 +4,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,12 +20,9 @@ import org.springframework.web.context.WebApplicationContext;
 
 @SpringBootTest
 class FamilyOnboardingIntegrationTest {
-    private static final String TEST_DATABASE = System.getProperty("java.io.tmpdir")
-            + "/family-onboarding-" + UUID.randomUUID() + ".db";
-
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
-        registry.add("family-chore-game.database-path", () -> TEST_DATABASE);
+        PostgresTestDatabase.configure(registry, "onboarding");
     }
 
     @Autowired WebApplicationContext context;
@@ -32,24 +30,26 @@ class FamilyOnboardingIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).defaultRequest(get("/").with(csrf()))
+                .apply(springSecurity()).build();
     }
 
     @Test
     void freshInstallRequiresAtomicFamilyAndMemberSetupBeforeBoard() throws Exception {
-        mvc.perform(get("/api/v1/bootstrap"))
+        mvc.perform(get("/api/v1/session"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.setupRequired").value(true))
-                .andExpect(jsonPath("$.members").isEmpty())
-                .andExpect(jsonPath("$.chores").isEmpty());
+                .andExpect(jsonPath("$.authenticated").value(false));
 
         var request = """
                 {"familyName":"משפחת ישראלי","defaultLanguage":"he",
-                 "memberNames":["נועה","דני"]}
+                 "members":[{"displayName":"נועה","role":"PARENT","pin":"1234"},
+                            {"displayName":"דני","role":"CHILD","pin":"5678"}]}
                 """;
         mvc.perform(post("/api/v1/families").contentType(MediaType.APPLICATION_JSON).content("""
                         {"familyName":"Duplicate Test","defaultLanguage":"en",
-                         "memberNames":["Dana","dana"]}
+                         "members":[{"displayName":"Dana","role":"PARENT","pin":"1234"},
+                                    {"displayName":"dana","role":"CHILD","pin":"5678"}]}
                         """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("duplicate_member_name"));

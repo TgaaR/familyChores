@@ -8,9 +8,9 @@ This plan takes the existing browser prototype to a durable, shared, secure appl
 
 ### Current implementation status
 
-The local shared-backend foundation is implemented: Java 21/Spring Boot serves the PWA and `/api/v1`, Jdbi persists data in SQLite, first-run family onboarding is available, chore catalogs load from a packaged resource, and current/coming-week rules are enforced server-side. A first benefit slice is also implemented: a resource-backed bilingual catalog, all-week or Friday/Saturday availability, per-member daily caps, spendable balances, atomic retry-safe redemptions, and wallet summaries.
+The local shared-backend foundation is implemented: Java 21/Spring Boot serves the PWA and `/api/v1`, Jdbi persists data in PostgreSQL, first-run family onboarding is available, chore catalogs load from a packaged resource, and current/coming-week rules are enforced server-side. A first right slice is also implemented: a resource-backed bilingual catalog, all-week or Friday/Saturday availability, per-member daily caps, spendable balances, atomic retry-safe redemptions, and wallet summaries.
 
-The remaining plan is still required for production readiness. Authentication and authorization, Tailscale deployment, SSE, backups, the full point ledger and expiration lifecycle, redemption approval/refund states, and parent-managed vacation overrides are not implemented. A packaged 2026–2027 Jewish state-school calendar currently supplies vacation-day behavior. `CURRENT_IMPLEMENTED_LOGIC.md` is authoritative for current behavior.
+The remaining plan is still required for production readiness. Member/PIN authentication, parent/child authorization, login throttling/lockout, CSRF protection, and authentication event logs are implemented; PIN recovery/change, Tailscale deployment, SSE, backups, the full point ledger and expiration lifecycle, redemption approval/refund states, and parent-managed vacation overrides are not implemented. A packaged 2026–2027 Jewish state-school calendar currently supplies vacation-day behavior. `CURRENT_IMPLEMENTED_LOGIC.md` is authoritative for current behavior.
 
 ## 2. Product goals
 
@@ -30,7 +30,7 @@ The finished application must:
 
 ## 3. Recommended architecture
 
-Use the existing application as a Progressive Web App (PWA), backed by a private API and SQLite database on one always-on server.
+Use the existing application as a Progressive Web App (PWA), backed by a private API and PostgreSQL database. Local development uses Docker Compose; the AWS target uses managed RDS PostgreSQL.
 
 ```mermaid
 flowchart LR
@@ -38,7 +38,7 @@ flowchart LR
     A[Galaxy / Android PWA] -->|Private HTTPS| T
     T --> S[Tailscale Serve]
     S -->|localhost only| API[Application API]
-    API --> DB[(SQLite database)]
+    API --> DB[(PostgreSQL database)]
     API --> B[Encrypted backups]
     API --> E[Live update stream]
     E --> W
@@ -51,8 +51,8 @@ flowchart LR
 - **Installable:** PWAs can be installed from Edge/Chrome on Windows and Chrome/Samsung Internet on Android when served over HTTPS. The existing project already has a manifest and service worker. See [MDN's PWA installation requirements](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable).
 - **Private HTTPS:** Tailscale Serve provides a private `*.ts.net` HTTPS address inside the tailnet and can proxy to a service bound only to localhost. See [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve).
 - **Not publicly exposed:** Do not enable Tailscale Funnel, do not forward router ports, and do not bind the application API to the LAN or public interfaces.
-- **Simple durable database:** SQLite is appropriate for one family and a low-write application. It avoids operating a separate database server while supporting transactions and reliable backups.
-- **Easy future migration:** Keep database access behind a repository/service layer so PostgreSQL can replace SQLite later without rewriting the UI.
+- **Managed durable database:** PostgreSQL supports the current transaction and concurrency requirements and can move directly to Amazon RDS without changing the PWA.
+- **Production scaling:** Row locking protects wallet-changing operations and PostgreSQL supports multiple application connections and managed backups.
 
 ## 4. Deployment environment
 
@@ -174,7 +174,7 @@ Additional server-side invariants:
 
 ### Reward and point lifecycle
 
-The benefit economy is partially implemented: completed chores contribute to a spendable balance, and resource-defined benefits support atomic redemption, all-week/weekend availability, and per-member daily caps. The requirements below describe both that implemented foundation and the remaining work needed for the complete point lifecycle.
+The right economy is partially implemented: completed chores contribute to a spendable balance, and resource-defined rights support atomic redemption, all-week/weekend availability, and per-member daily caps. The requirements below describe both that implemented foundation and the remaining work needed for the complete point lifecycle.
 
 #### Requirements already decided
 
@@ -395,14 +395,14 @@ Do not add full offline writes in the first backend release; conflict handling s
 
 ### Persistence
 
-- Keep the SQLite database on a persistent host volume, never inside an ephemeral container layer.
-- Enable foreign keys and use transactions for every mutation.
-- Consider SQLite WAL mode for normal concurrent reads, while keeping the database on a local disk rather than a network filesystem.
+- Keep PostgreSQL data on persistent managed storage; use the named Docker volume only for local development and RDS in AWS.
+- Keep foreign keys enabled and use transactions for every mutation.
+- Configure connection limits, statement/connect timeouts, TLS, and monitoring for the production database.
 - Run schema migrations automatically only after a pre-upgrade backup succeeds.
 
 ### Backups
 
-Use SQLite's online backup mechanism rather than copying an active database file blindly. See the [SQLite Online Backup API](https://sqlite.org/backup.html).
+Use PostgreSQL-native backups. In AWS, enable RDS automated backups and snapshots, and rehearse point-in-time restoration into a disposable environment.
 
 - Nightly encrypted database backup.
 - Retention target: 7 daily, 5 weekly, and 12 monthly copies.
@@ -459,12 +459,12 @@ Use SQLite's online backup mechanism rather than copying an active database file
 - Error handling and bilingual user-facing messages.
 - Server health check and basic operational logging.
 
-### Required completion of the benefit economy
+### Required completion of the right economy
 
 - Spendable member point wallets backed by an append-only ledger.
 - Friday-to-Friday point availability and automatic expiration.
 - Maximum 2-point carry-over per member after settlement.
-- Parent-managed benefit catalog; the current catalog is resource-backed.
+- Parent-managed right catalog; the current catalog is resource-backed.
 - Preserve the implemented atomic redemption and per-member daily caps.
 - Expand the implemented all-week/weekend rules into configurable schedules.
 - Vacation-day calendar overrides.
@@ -605,10 +605,10 @@ Tasks:
 
 1. Configure trusted Tailscale Serve identity headers.
 2. Map approved Tailscale identities to app users.
-3. Implement parent/member roles and secure sessions.
-4. Add parent PIN enrollment, hashing, retry limits, and recovery instructions.
-5. Enforce permissions server-side and hide unavailable UI actions.
-6. Complete authorization and header-spoofing tests.
+3. [x] Implement parent/member roles and secure sessions.
+4. [~] Parent/member PIN enrollment, hashing, and retry lockout are implemented; PIN change/recovery instructions remain.
+5. [x] Enforce permissions server-side and hide unavailable UI actions for the current endpoints.
+6. [~] Core session, role, and CSRF tests are implemented; trusted-header spoofing tests remain if Tailscale identity headers are adopted.
 
 Exit criteria: an unauthorized tailnet user cannot access family data, and a member cannot perform parent actions even with crafted API requests.
 
@@ -650,23 +650,23 @@ Tasks:
 
 Exit criteria: the family completes two weekly cycles across multiple devices without data loss or manual database intervention.
 
-### Phase 8 — Complete the benefits and point economy
+### Phase 8 — Complete the rights and point economy
 
-Status: partially implemented. Catalog-backed benefits, wallet balances, atomic retry-safe redemptions, fixed Friday/Saturday availability, and daily caps are complete. The tasks below cover the remaining lifecycle.
+Status: partially implemented. Catalog-backed rights, wallet balances, atomic retry-safe redemptions, fixed Friday/Saturday availability, and daily caps are complete. The tasks below cover the remaining lifecycle.
 
 Tasks:
 
 1. Confirm the precise Friday-to-Friday earning, spending, settlement, expiration, and carry-over timestamps.
 2. Make the currently fixed Friday–Saturday weekend configurable and confirm vacation override behavior.
-3. Extend the existing benefit/redemption migrations with calendar overrides, schedules, and an append-only ledger.
+3. Extend the existing right/redemption migrations with calendar overrides, schedules, and an append-only ledger.
 4. Award idempotent ledger credits when eligible chores are completed.
 5. Implement available/pending/expiring balance calculations and maximum 2-point carry-over settlement.
-6. Extend the implemented atomic benefit redemption with soonest-expiring-first ledger consumption.
+6. Extend the implemented atomic right redemption with soonest-expiring-first ledger consumption.
 7. Implement parent reward management, approval/fulfillment, cancellation/refund, and audited corrections.
 8. Add bilingual wallet, reward catalog, availability explanation, and redemption-history screens.
 9. Test timezone/DST boundaries, both Friday cutoffs, vacations, simultaneous redemptions, retries, expiration, and refunds.
 
-Exit criteria: earned points follow the agreed lifecycle exactly, benefits obey normal and vacation schedules, simultaneous devices cannot double-spend, and every balance can be reconstructed from the ledger.
+Exit criteria: earned points follow the agreed lifecycle exactly, rights obey normal and vacation schedules, simultaneous devices cannot double-spend, and every balance can be reconstructed from the ledger.
 
 ### Phase 9 — Additional enhancements
 
@@ -735,7 +735,7 @@ Create a separate runbook during implementation covering:
 10. Does a Friday chore award points immediately, and are those points part of the period that has just opened?
 11. At which exact settlement boundary are the maximum 2 points carried forward, and when do those carried points expire?
 12. Friday–Saturday is currently the fixed weekend. Should parents be allowed to change it?
-13. The proposed school-vacation override enables all `WEEKEND` benefits for selected dates/ranges. Confirm whether selective benefit overrides are also needed.
+13. The proposed school-vacation override enables all `WEEKEND` rights for selected dates/ranges. Confirm whether selective right overrides are also needed.
 14. Does redeeming a reward immediately spend points, or are points reserved until a parent approves it?
 15. Can a member cancel their own redemption, and under what conditions are points refunded?
 

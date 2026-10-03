@@ -6,6 +6,13 @@ spring:
 server:
   address: ${SERVER_ADDRESS:127.0.0.1}
   port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      timeout: 12h
+      cookie:
+        http-only: true
+        same-site: strict
+        secure: ${SESSION_COOKIE_SECURE:false}
 management:
   endpoints:
     web:
@@ -15,5 +22,7 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] [%X{request_id:-}] %logger{36} - %msg %kvp%n%ex"
 family-chore-game:
-  database-path: ${FAMILY_CHORE_DB:./data/family-chore-game.db}
+  database-url: ${FAMILY_CHORE_DB_URL:jdbc:postgresql://localhost:5432/family_chore_game}
+  database-username: ${FAMILY_CHORE_DB_USERNAME:family_chore_game}
+  database-password: ${FAMILY_CHORE_DB_PASSWORD:family_chore_game}
   timezone: Asia/Jerusalem

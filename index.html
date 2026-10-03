@@ -17,6 +17,8 @@
         <span>familyChoreGame</span>
       </a>
       <div class="header-actions">
+        <span id="currentUser" class="current-user hidden"></span>
+        <button id="logoutButton" class="button secondary hidden" type="button" data-i18n="logout"></button>
         <button id="installButton" class="button secondary hidden" type="button"></button>
         <button id="languageButton" class="language-button" type="button" aria-label="Change language">English</button>
       </div>
@@ -36,9 +38,9 @@
       <nav class="main-tabs" role="tablist" data-i18n-aria="mainSections">
         <button id="choresTab" class="main-tab active" type="button" role="tab"
                 aria-selected="true" aria-controls="choresPanel" data-main-tab="chores" data-i18n="chores"></button>
-        <button id="benefitsTab" class="main-tab" type="button" role="tab"
-                aria-selected="false" aria-controls="benefitsPanel" tabindex="-1"
-                data-main-tab="benefits" data-i18n="benefits"></button>
+        <button id="rightsTab" class="main-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rightsPanel" tabindex="-1"
+                data-main-tab="rights" data-i18n="rights"></button>
       </nav>
 
       <div id="choresPanel" class="main-tab-panel" role="tabpanel" aria-labelledby="choresTab">
@@ -85,24 +87,34 @@
         </section>
       </div>
 
-      <div id="benefitsPanel" class="main-tab-panel" role="tabpanel" aria-labelledby="benefitsTab" hidden>
-        <section class="benefits-section" aria-labelledby="benefitsTitle">
-        <div class="section-heading benefits-heading">
+      <div id="rightsPanel" class="main-tab-panel" role="tabpanel" aria-labelledby="rightsTab" hidden>
+        <section class="rights-section" aria-labelledby="rightsTitle">
+        <div class="section-heading rights-heading">
           <div>
-            <p class="eyebrow" data-i18n="benefits"></p>
-            <h2 id="benefitsTitle" data-i18n="chooseBenefit"></h2>
+            <p class="eyebrow" data-i18n="rights"></p>
+            <h2 id="rightsTitle" data-i18n="chooseRight"></h2>
           </div>
           <label class="member-filter">
             <span data-i18n="forMember"></span>
-            <select id="benefitMember"></select>
+            <select id="rightMember"></select>
           </label>
         </div>
-        <p id="benefitBalance" class="benefit-balance"></p>
-        <div id="benefitCards" class="benefit-cards"></div>
-        <p id="benefitError" class="form-error" role="alert"></p>
+        <p id="rightBalance" class="right-balance"></p>
+        <div id="rightCards" class="right-cards"></div>
+        <p id="rightError" class="form-error" role="alert"></p>
         </section>
       </div>
     </main>
+
+    <dialog id="loginDialog" class="dialog setup-dialog">
+      <form id="loginForm">
+        <div class="dialog-header"><div><p class="eyebrow" data-i18n="welcomeBack"></p><h2 data-i18n="login"></h2></div></div>
+        <label><span data-i18n="familyMember"></span><select id="loginMember" required></select></label>
+        <label><span data-i18n="pin"></span><input id="loginPin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="current-password" required /></label>
+        <p id="loginError" class="form-error" role="alert"></p>
+        <button class="button primary full" type="submit" data-i18n="login"></button>
+      </form>
+    </dialog>
 
     <dialog id="setupDialog" class="dialog setup-dialog">
       <form id="setupForm">
@@ -114,6 +126,15 @@
         <label><span data-i18n="defaultLanguage"></span><select id="setupLanguage" required><option value="he">עברית</option><option value="en">English</option></select></label>
         <fieldset>
           <legend data-i18n="initialMembers"></legend>
+          <div class="setup-member-headings">
+            <span data-i18n="memberName"></span>
+            <span><span data-i18n="pinHeading"></span>
+              <button class="pin-help" type="button" data-i18n-aria="pinRequirements"
+                      data-i18n-tooltip="pinRequirements">?</button>
+            </span>
+            <span data-i18n="role"></span>
+            <span></span>
+          </div>
           <div id="setupMembers" class="setup-members"></div>
           <button id="addSetupMember" class="button secondary" type="button">＋ <span data-i18n="addAnotherMember"></span></button>
         </fieldset>
@@ -145,7 +166,10 @@
           <button class="close-button" type="button" data-close="membersDialog" aria-label="Close">×</button>
         </div>
         <div id="membersList" class="members-list"></div>
-        <label><span data-i18n="memberName"></span><div class="inline-field"><input id="memberName" maxlength="24" autocomplete="off" required /><button class="button primary" type="submit" data-i18n="add"></button></div></label>
+        <label><span data-i18n="memberName"></span><input id="memberName" maxlength="24" autocomplete="off" required /></label>
+        <label><span data-i18n="role"></span><select id="memberRole"><option value="CHILD" data-i18n="child"></option><option value="PARENT" data-i18n="parent"></option></select></label>
+        <label><span data-i18n="pin"></span><input id="memberPin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" required /></label>
+        <button class="button primary full" type="submit" data-i18n="add"></button>
         <p id="memberError" class="form-error" role="alert"></p>
       </form>
     </dialog>

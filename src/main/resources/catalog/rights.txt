@@ -1,0 +1,23 @@
+# familyChoreGame right catalog
+# id|Hebrew name|English name|point cost|availability|daily cap
+# availability must be ALL_WEEK or WEEKEND (Friday and Saturday)
+#
+# Example:
+# screen-time|זמן מסך|Screen time|5|WEEKEND|4
+#
+# Add one line per right. IDs must be unique and should remain stable after use.
+
+screen time|רבע שעה זמן מסך בסופי שבוע|quarter-hour screen time during the weekend|1|WEEKEND|4
+saturday family activity|לבחור בשבת פעילות למשפחה|choose a family activity for the weekend|2|ALL_WEEK|1
+personal activity with one of the parents|פעילות עם אחד ההורים|personal activity with one of the parents|5|ALL_WEEK|1
+half an hour of choosing music on Saturday morning|חצי שעה מוזיקה בשבת בבוקר|half an hour of choosing music on Saturday morning|1|WEEKEND|1
+money for candy|כסף לממתק פשוט|money for candy|2|ALL_WEEK|1
+money for regular ice-cream|כסף לגלידה רגילה|money for regular ice-cream|2|ALL_WEEK|1
+money for special desert|כסף לקינוח מיוחד|money for special desert|3|ALL_WEEK|1
+one podcast|לבחור בשבת פעילות למשפחה|one podcast|1|WEEKEND|2
+choose a family movie|לבחור סרט משפחתי|choose a family movie|2|WEEKEND|1
+sitting place at the Friday evening dinner|מקום ישיבה בשולחן שישי|sitting place at the Friday evening dinner|1|WEEKEND|1
+leaving room sleep-over|לישון בסלון ללילה|leaving room sleep-over|3|WEEKEND|1
+family activity for Saturday|פעילות משפחתית בשבת|family activity for Saturday|2|WEEKEND|1
+stay awake for 30 minutes more|להשאר ער עוד 30 דקות|stay awake for 30 minutes more|1|ALL_WEEK|1
+new board game|משחק קופסה חדש|new board game|7|ALL_WEEK|1

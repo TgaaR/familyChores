@@ -43,30 +43,30 @@ public class CatalogSeeder implements ApplicationRunner {
                 .bind("familyId", GameRepository.FAMILY_ID).mapTo(boolean.class).one());
         if (!familyExists) return;
         jdbi.useTransaction(handle -> {
-            handle.createUpdate("UPDATE chores SET active = 0 WHERE family_id = :familyId")
+            handle.createUpdate("UPDATE chores SET active = FALSE WHERE family_id = :familyId")
                     .bind("familyId", GameRepository.FAMILY_ID).execute();
-            handle.createUpdate("UPDATE chore_categories SET active = 0 WHERE family_id = :familyId")
+            handle.createUpdate("UPDATE chore_categories SET active = FALSE WHERE family_id = :familyId")
                     .bind("familyId", GameRepository.FAMILY_ID).execute();
 
             for (var category : catalog.categories()) {
                 handle.createUpdate("""
                         INSERT INTO chore_categories(id, family_id, name_he, name_en, sort_order, active)
-                        VALUES (:id, :familyId, :nameHe, :nameEn, 0, 1)
+                        VALUES (:id, :familyId, :nameHe, :nameEn, 0, TRUE)
                         ON CONFLICT(id) DO UPDATE SET name_he = excluded.name_he, name_en = excluded.name_en,
-                          sort_order = 0, active = 1
+                          sort_order = 0, active = TRUE
                         """).bind("id", category.id()).bind("familyId", GameRepository.FAMILY_ID)
                         .bind("nameHe", category.nameHe()).bind("nameEn", category.nameEn()).execute();
             }
 
-            var now = Instant.now().toString();
+            var now = Instant.now();
             for (var chore : catalog.chores()) {
                 handle.createUpdate("""
                         INSERT INTO chores(id, family_id, category_id, name_he, name_en, points, sort_order,
                           active, created_at, updated_at)
-                        VALUES (:id, :familyId, :categoryId, :nameHe, :nameEn, :points, 0, 1, :now, :now)
+                        VALUES (:id, :familyId, :categoryId, :nameHe, :nameEn, :points, 0, TRUE, :now, :now)
                         ON CONFLICT(id) DO UPDATE SET category_id = excluded.category_id,
                           name_he = excluded.name_he, name_en = excluded.name_en, points = excluded.points,
-                          sort_order = 0, active = 1, updated_at = excluded.updated_at
+                          sort_order = 0, active = TRUE, updated_at = excluded.updated_at
                         """).bind("id", chore.id()).bind("familyId", GameRepository.FAMILY_ID)
                         .bind("categoryId", chore.categoryId()).bind("nameHe", chore.nameHe())
                         .bind("nameEn", chore.nameEn()).bind("points", chore.points())

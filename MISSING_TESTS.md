@@ -4,43 +4,42 @@
 
 This document tracks important behavior that is implemented or planned but is not yet adequately covered by automated tests.
 
-The current suite contains 36 passing tests. It covers family onboarding, core member validation, week policies, assignment and benefit concurrency, completion versioning, weekly scoring, benefit spending and daily caps, migration upgrades, representative school-calendar dates, API day classification, logging configuration, request correlation, safe malformed/unexpected-error responses, and several packaged-PWA contracts.
+The current suite contains 38 passing tests. It covers family onboarding, core member validation, week policies, assignment and right concurrency, completion versioning, weekly scoring, right spending and daily caps, the PostgreSQL baseline migration, representative school-calendar dates, API day classification, authentication/session basics, role enforcement, CSRF, login lockout, logging configuration, request correlation, safe malformed/unexpected-error responses, and several packaged-PWA contracts.
 
 Items below should be checked off only after an automated test is added and passes through the normal project test commands.
 
 ## Priority 1 — Critical data and point safety
 
-### Concurrent benefit redemptions
+### Concurrent right redemptions
 
 - [x] Two simultaneous redemptions cannot spend the same final points.
 - [x] Two simultaneous redemptions cannot both consume the final daily-cap slot.
-- [x] A benefit redemption racing with chore uncompletion cannot create a negative balance.
-- [x] A member archive racing with benefit redemption produces a consistent result.
+- [x] A right redemption racing with chore uncompletion cannot create a negative balance.
+- [x] A member archive racing with right redemption produces a consistent result.
 
-### Benefit request idempotency
+### Right request idempotency
 
 - [x] Retrying the same request ID with the same payload returns the original redemption.
 - [x] Reusing a request ID with a different member is rejected.
-- [x] Reusing a request ID with a different benefit is rejected.
+- [x] Reusing a request ID with a different right is rejected.
 - [x] An idempotent retry does not fail merely because the daily cap was reached by the original request.
 
-### Migration upgrades
+### Baseline migration
 
-- [x] A V1-only database upgrades successfully through V2 and V3.
-- [x] An existing V2 database with benefits and redemptions upgrades to V3 without data loss.
-- [x] Existing redemption snapshots remain unchanged after migration.
-- [x] Restarting after all migrations are applied does not reapply them.
-- [x] Migration failure leaves a recoverable database state.
+- [x] A fresh database receives the complete family, chore, assignment, right, and redemption schema.
+- [x] Required baseline indexes and right availability/cap columns are created.
+- [x] Restarting after the baseline is applied does not reapply it.
+- [x] Baseline failure rolls back migration tracking and leaves pre-existing data readable.
 
-## Priority 2 — Benefit availability and catalog behavior
+## Priority 2 — Right availability and catalog behavior
 
 ### Availability rules
 
-- [ ] A `WEEKEND` benefit is rejected on a regular Sunday–Thursday school day.
-- [ ] A `WEEKEND` benefit is accepted on Friday.
-- [ ] A `WEEKEND` benefit is accepted on Saturday.
-- [ ] A `WEEKEND` benefit is accepted during an official school vacation.
-- [ ] An `ALL_WEEK` benefit is accepted on a regular school day.
+- [ ] A `WEEKEND` right is rejected on a regular Sunday–Thursday school day.
+- [ ] A `WEEKEND` right is accepted on Friday.
+- [ ] A `WEEKEND` right is accepted on Saturday.
+- [ ] A `WEEKEND` right is accepted during an official school vacation.
+- [ ] An `ALL_WEEK` right is accepted on a regular school day.
 - [ ] The server, not the device clock, decides availability.
 - [ ] Availability changes correctly at midnight in `Asia/Jerusalem`.
 - [ ] Availability remains correct across daylight-saving transitions.
@@ -48,23 +47,23 @@ Items below should be checked off only after an automated test is added and pass
 ### Daily caps
 
 - [ ] A daily cap applies separately to each member.
-- [ ] A daily cap applies separately to each benefit.
+- [ ] A daily cap applies separately to each right.
 - [ ] The cap resets on the next Jerusalem calendar date.
 - [ ] Historical redemptions outside today's range do not count against today's cap.
 - [ ] A cap greater than one permits exactly the configured number of redemptions.
 
-### Benefit catalog loading
+### Right catalog loading
 
 - [ ] Invalid field counts fail startup with the resource path and line number.
 - [ ] Unknown availability values fail validation.
 - [ ] Zero and negative costs fail validation.
 - [ ] Zero and negative daily caps fail validation.
-- [ ] Duplicate benefit IDs fail validation.
+- [ ] Duplicate right IDs fail validation.
 - [ ] Blank required fields fail validation.
-- [ ] Updating a benefit synchronizes its names, cost, availability, and cap.
-- [ ] Removing a benefit from the file marks it inactive.
+- [ ] Updating a right synchronizes its names, cost, availability, and cap.
+- [ ] Removing a right from the file marks it inactive.
 - [ ] Catalog changes do not rewrite historical redemption names or costs.
-- [ ] An empty benefit file is accepted and produces an empty UI state.
+- [ ] An empty right file is accepted and produces an empty UI state.
 
 ## Priority 3 — School calendar
 
@@ -112,12 +111,12 @@ Items below should be checked off only after an automated test is added and pass
 - [ ] Completing a missing assignment returns `assignment_not_found`.
 - [x] Malformed path dates and malformed JSON return stable structured errors.
 
-### Benefits
+### Rights
 
 - [ ] Redeeming for an unknown or archived member returns `member_not_found`.
-- [ ] Redeeming an unknown or inactive benefit returns `benefit_not_found`.
+- [ ] Redeeming an unknown or inactive right returns `right_not_found`.
 - [ ] Insufficient points returns `insufficient_points` without creating a row.
-- [ ] Unavailable-day rejection returns `benefit_not_available_today`.
+- [ ] Unavailable-day rejection returns `right_not_available_today`.
 - [ ] Daily-cap rejection returns `daily_cap_reached`.
 
 ### Error handling
@@ -128,6 +127,21 @@ Items below should be checked off only after an automated test is added and pass
 - [ ] Error responses never expose SQL, filesystem paths, or sensitive request data.
 
 ## Priority 5 — Browser and PWA flows
+
+### Authentication and authorization
+
+- [x] Unauthenticated access to family data is rejected.
+- [x] PINs are BCrypt hashes and are not stored in plain text.
+- [x] Invalid PIN login is rejected and a valid login persists through the session.
+- [x] A child cannot call a parent-only member-management endpoint.
+- [x] A parent can call the same protected endpoint.
+- [x] Logout invalidates the session.
+- [x] A child cannot complete another member's chore or redeem another member's right.
+- [ ] Every parent-only endpoint has a crafted-request authorization test.
+- [ ] Archived members cannot log in.
+- [x] PIN retry throttling and temporary lockout are tested.
+- [x] CSRF invalid-token rejection and the packaged PWA token-header contract are tested.
+- [ ] Browser tests cover login, logout, role-specific controls, and session expiry.
 
 The current frontend tests inspect packaged source text; they do not execute the UI in a browser. Add Playwright or an equivalent browser-test setup before completing this section.
 
@@ -167,12 +181,12 @@ The current frontend tests inspect packaged source text; they do not execute the
 - [ ] Archiving the currently filtered member resets the filter safely.
 - [ ] Archived-member history remains visible on historical boards.
 
-### Benefits UI
+### Rights UI
 
-- [ ] Changing the selected member refreshes balance and available benefits.
-- [ ] Unaffordable benefits are hidden.
-- [ ] Capped-out benefits are hidden.
-- [ ] Weekend benefits appear on weekends and school vacations only.
+- [ ] Changing the selected member refreshes balance and available rights.
+- [ ] Unaffordable rights are hidden.
+- [ ] Capped-out rights are hidden.
+- [ ] Weekend rights appear on weekends and school vacations only.
 - [ ] Cost, availability, and daily usage are rendered correctly.
 - [ ] Confirmed redemption updates balance, count, value, and available choices.
 - [ ] Cancelling the confirmation does not redeem or spend points.
@@ -193,11 +207,10 @@ The current frontend tests inspect packaged source text; they do not execute the
 
 ## Priority 7 — Database configuration and repository behavior
 
-- [ ] SQLite foreign-key enforcement is active on application connections.
-- [ ] WAL journal mode is enabled.
-- [ ] Busy timeout is configured.
-- [ ] The expected synchronous mode is configured.
-- [ ] Benefit balance queries include every completed assignment and redemption exactly once.
+- [x] Integration tests execute against a real PostgreSQL 16 instance.
+- [ ] Production PostgreSQL connection-pool limits and timeouts are configured and tested.
+- [ ] RDS SSL verification is configured and tested for the AWS profile.
+- [ ] Right balance queries include every completed assignment and redemption exactly once.
 - [ ] Archived members retain balances and historical redemption records.
 - [ ] Catalog deactivation does not break referenced assignments or redemptions.
 - [ ] Repository mapping covers nullable timestamps correctly.
@@ -215,10 +228,10 @@ The current frontend tests inspect packaged source text; they do not execute the
 
 ## Suggested implementation order
 
-1. Concurrent redemption and migration-upgrade tests.
-2. Weekend/vacation benefit-availability boundary tests.
-3. Benefit and calendar resource validation tests.
-4. Playwright setup and core onboarding/chore/benefit browser flows.
+1. Concurrent redemption and baseline-migration tests.
+2. Weekend/vacation right-availability boundary tests.
+3. Right and calendar resource validation tests.
+4. Playwright setup and core onboarding/chore/right browser flows.
 5. Service-worker/offline tests.
 6. Accessibility and responsive visual regression tests.
 

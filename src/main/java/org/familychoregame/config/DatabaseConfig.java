@@ -1,21 +1,20 @@
 package org.familychoregame.config;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.time.Instant;
 import java.time.LocalDate;
 import org.familychoregame.domain.Assignment;
-import org.familychoregame.domain.Benefit;
-import org.familychoregame.domain.BenefitRedemption;
+import org.familychoregame.domain.Right;
+import org.familychoregame.domain.RightRedemption;
 import org.familychoregame.domain.Chore;
 import org.familychoregame.domain.ChoreCategory;
 import org.familychoregame.domain.FamilyMember;
 import org.familychoregame.domain.FamilyProfile;
 import org.familychoregame.api.ApiModels.MemberBalance;
+import org.familychoregame.api.ApiModels.LoginMember;
+import org.familychoregame.repository.GameRepository.AuthMember;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.reflect.ConstructorMapper;
-import org.sqlite.SQLiteConfig;
-import org.sqlite.SQLiteDataSource;
+import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,34 +23,28 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(AppProperties.class)
 public class DatabaseConfig {
     @Bean
-    Jdbi jdbi(AppProperties properties) throws IOException {
-        var databasePath = properties.databasePath().toAbsolutePath();
-        if (databasePath.getParent() != null) {
-            Files.createDirectories(databasePath.getParent());
-        }
-
-        var sqliteConfig = new SQLiteConfig();
-        sqliteConfig.enforceForeignKeys(true);
-        sqliteConfig.setBusyTimeout(5_000);
-        sqliteConfig.setJournalMode(SQLiteConfig.JournalMode.WAL);
-        sqliteConfig.setSynchronous(SQLiteConfig.SynchronousMode.NORMAL);
-
-        var dataSource = new SQLiteDataSource(sqliteConfig);
-        dataSource.setUrl("jdbc:sqlite:" + databasePath);
+    Jdbi jdbi(AppProperties properties) {
+        var dataSource = new PGSimpleDataSource();
+        dataSource.setUrl(properties.databaseUrl());
+        dataSource.setUser(properties.databaseUsername());
+        dataSource.setPassword(properties.databasePassword());
         return Jdbi.create(dataSource)
+                .installPlugins()
                 .registerColumnMapper(LocalDate.class,
-                        (resultSet, column, context) -> LocalDate.parse(resultSet.getString(column)))
+                        (resultSet, column, context) -> resultSet.getObject(column, LocalDate.class))
                 .registerColumnMapper(Instant.class, (resultSet, column, context) -> {
-                    var value = resultSet.getString(column);
-                    return value == null ? null : Instant.parse(value);
+                    var value = resultSet.getObject(column, java.time.OffsetDateTime.class);
+                    return value == null ? null : value.toInstant();
                 })
                 .registerRowMapper(ConstructorMapper.factory(FamilyMember.class))
                 .registerRowMapper(ConstructorMapper.factory(FamilyProfile.class))
                 .registerRowMapper(ConstructorMapper.factory(ChoreCategory.class))
                 .registerRowMapper(ConstructorMapper.factory(Chore.class))
                 .registerRowMapper(ConstructorMapper.factory(Assignment.class))
-                .registerRowMapper(ConstructorMapper.factory(Benefit.class))
-                .registerRowMapper(ConstructorMapper.factory(BenefitRedemption.class))
-                .registerRowMapper(ConstructorMapper.factory(MemberBalance.class));
+                .registerRowMapper(ConstructorMapper.factory(Right.class))
+                .registerRowMapper(ConstructorMapper.factory(RightRedemption.class))
+                .registerRowMapper(ConstructorMapper.factory(MemberBalance.class))
+                .registerRowMapper(ConstructorMapper.factory(LoginMember.class))
+                .registerRowMapper(ConstructorMapper.factory(AuthMember.class));
     }
 }

@@ -7,3 +7,12 @@ logging:
     org.familychoregame: INFO
     org.jdbi: WARN
     org.springframework.web: INFO
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+family-chore-game:
+  database-url: ${FAMILY_CHORE_DB_URL}
+  database-username: ${FAMILY_CHORE_DB_USERNAME}
+  database-password: ${FAMILY_CHORE_DB_PASSWORD}

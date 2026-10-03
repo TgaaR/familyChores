@@ -18,10 +18,7 @@ import org.springframework.stereotype.Component;
 @Order(0)
 public class DatabaseMigrator implements ApplicationRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseMigrator.class);
-    private static final List<String> MIGRATIONS = List.of(
-            "db/migration/V1__initial_schema.sql",
-            "db/migration/V2__benefits.sql",
-            "db/migration/V3__benefit_availability_and_caps.sql");
+    private static final List<String> MIGRATIONS = List.of("db/migration/V1__initial_schema.sql");
     private final Jdbi jdbi;
 
     public DatabaseMigrator(Jdbi jdbi) {
@@ -32,7 +29,7 @@ public class DatabaseMigrator implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         var appliedMigrations = new ArrayList<String>();
         jdbi.useTransaction(handle -> {
-            handle.execute("CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
+            handle.execute("CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL)");
             for (String migration : MIGRATIONS) {
                 if (!handle.createQuery("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = :version)")
                         .bind("version", migration).mapTo(boolean.class).one()) {
@@ -43,7 +40,7 @@ public class DatabaseMigrator implements ApplicationRunner {
                     }
                     handle.createUpdate("INSERT INTO schema_migrations(version, applied_at) VALUES (:version, :appliedAt)")
                             .bind("version", migration)
-                            .bind("appliedAt", java.time.Instant.now().toString())
+                            .bind("appliedAt", java.time.Instant.now())
                             .execute();
                     appliedMigrations.add(migration);
                 }
