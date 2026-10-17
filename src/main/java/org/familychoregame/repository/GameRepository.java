@@ -37,6 +37,12 @@ public class GameRepository {
         this.jdbi = jdbi;
     }
 
+    public void clearAllData() {
+        jdbi.useTransaction(handle -> handle.execute("""
+                TRUNCATE TABLE assignments, right_redemptions, member_login_attempts,
+                    chores, chore_categories, rights, family_members, families
+                """));
+    }
     public Optional<FamilyProfile> family() {
         return jdbi.withHandle(handle -> handle.createQuery("""
                 SELECT id, name, timezone, default_language AS defaultLanguage

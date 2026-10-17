@@ -21,13 +21,16 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, org.familychoregame.repository.GameRepository repository) throws Exception {
         var csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
         csrfRequestHandler.setCsrfRequestAttributeName(null);
         return http
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(csrfRequestHandler))
+                .addFilterAfter(new SwaggerCsrfFilter(), org.springframework.security.web.csrf.CsrfFilter.class)
+                .addFilterBefore(new MemberSessionFilter(repository),
+                        org.springframework.security.web.access.intercept.AuthorizationFilter.class)
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .logout(logout -> logout.disable())
@@ -35,7 +38,8 @@ public class SecurityConfig {
                         .requestMatchers("/", "/index.html", "/app.js", "/styles.css", "/icon.svg",
                                 "/manifest.webmanifest", "/sw.js", "/actuator/health",
                                 "/api/v1/session", "/api/v1/login-members", "/api/v1/login",
-                                "/api/v1/families").permitAll()
+                                "/api/v1/families", "/swagger-ui.html", "/swagger-ui/**",
+                                "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(errors -> errors.authenticationEntryPoint(

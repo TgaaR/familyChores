@@ -26,3 +26,13 @@ family-chore-game:
   database-username: ${FAMILY_CHORE_DB_USERNAME:family_chore_game}
   database-password: ${FAMILY_CHORE_DB_PASSWORD:family_chore_game}
   timezone: Asia/Jerusalem
+springdoc:
+  paths-to-match: /api/v1/**
+  swagger-ui:
+    path: /swagger-ui.html
+    disable-swagger-default-url: true
+    supported-submit-methods: [get, post, put, delete, patch]
+    csrf:
+      enabled: true
+      cookie-name: XSRF-TOKEN
+      header-name: X-XSRF-TOKEN

@@ -60,8 +60,8 @@ class FamilyOnboardingIntegrationTest {
                 .andExpect(jsonPath("$.familyName").value("משפחת ישראלי"))
                 .andExpect(jsonPath("$.defaultLanguage").value("he"))
                 .andExpect(jsonPath("$.members.length()").value(2))
-                .andExpect(jsonPath("$.categories.length()").value(7))
-                .andExpect(jsonPath("$.chores.length()").value(28));
+                .andExpect(jsonPath("$.categories.length()").value(10))
+                .andExpect(jsonPath("$.chores.length()").value(35));
 
         mvc.perform(post("/api/v1/families").contentType(MediaType.APPLICATION_JSON).content(request))
                 .andExpect(status().isConflict())

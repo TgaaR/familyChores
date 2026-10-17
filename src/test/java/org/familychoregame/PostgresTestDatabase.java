@@ -8,7 +8,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 final class PostgresTestDatabase {
-    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-bookworm")
             .withDatabaseName("family_chore_game_test")
             .withUsername("family_chore_game")
             .withPassword("family_chore_game");

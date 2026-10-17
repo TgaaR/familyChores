@@ -9,24 +9,28 @@ CHORE|floor|living-room|סידור רצפה|Tidy the floor|1
 CHORE|computer-desk|living-room|סידור שולחן מחשב|Tidy the computer desk|1
 CHORE|tv-console|living-room|סידור מזנון טלוויזיה|Tidy the TV console|1
 CHORE|craft-table|living-room|סידור שולחן יצירה|Tidy the craft table|1
+CHORE|tidy-craft-computer-play-area|living-room|לסדר את שולחן היצירה של הילדים, את שולחן המחשב ואת פינת המשחקים|Tidy the children's craft table, the computer desk, and the play area|3
+CHORE|tidy-living-room|living-room|לסדר את שולחן הסלון, להרים דברים מהרצפה, לסדר את מזנון הטלוויזיה ולסדר את הספות|Tidy the living room table, pick up things from the floor, arrange the TV console, and tidy the sofas|3
 
 CATEGORY|dining-play|פינת אוכל ופינת משחקים|Dining and play areas
 CHORE|dining-table|dining-play|ניגוב וניקיון שולחן אוכל|Wipe and clean the dining table|1
 CHORE|play-area|dining-play|לסדר פינת משחקים|Tidy the play area|1
 CHORE|clear-shared-items-from-table|dining-play|לפנות דברים משותפים מהשולחן|Clear shared items from the table|1
 CHORE|set-family-meal-table|dining-play|לערוך שולחן לארוחה משפחתית|Set the table for a family meal|1
+CHORE|prepare-meal-table-and-salad|dining-play|לנקות את שולחן האוכל, להכין סלט ולערוך שולחן לארוחה|Clean the dining table, prepare a salad, and set the table for a meal|3
 
 CATEGORY|bathroom|חדר מקלחת|Bathroom
 CHORE|laundry|bathroom|להוריד בגדים לכביסה למטה|Take clothes down to the laundry|1
 CHORE|bathroom-counter|bathroom|לסדר ולנקות את השיש|Tidy and clean the bathroom counter|2
+CHORE|clean-bathroom-counter-and-change-sheets|bathroom|לסדר ולנקות את השיש בחדר המקלחת ולהחליף מצעים לכולם|Tidy and clean the bathroom counter and change everyone's bed linens|3
 
 CATEGORY|kitchen|מטבח|Kitchen
 CHORE|load-dishwasher|kitchen|להעמיס מדיח|Load the dishwasher|2
 CHORE|unload-dishwasher|kitchen|לרוקן מדיח|Unload the dishwasher|2
+CHORE|load-and-unload-dishwasher|kitchen|להעמיס ולרוקן מדיח|Load and unload the dishwasher|3
 CHORE|clear-sink|kitchen|לפנות כיור|Clear the sink|3
 CHORE|clean-kitchen-counter|kitchen|לנקות ולסדר שיש|Clean and tidy the kitchen counter|2
 CHORE|help-prepare-family-meal|kitchen|להשתתף בהכנת ארוחה משפחתית|Help prepare a family meal|2
-CHORE|buy-groceries|kitchen|קניית מצרכים|Buy groceries|1
 CHORE|clean-stovetop|kitchen|לנקות כריים|Clean the stovetop|1
 CHORE|make-bread|kitchen|להכין לחם|Make bread|1
 CHORE|make-family-meal-salad|kitchen|להכין סלט לארוחה משפחתית|Make a salad for a family meal|2
@@ -43,3 +47,12 @@ CHORE|tidy-entrance-rug-cabinet|home-entrance|לסדר שטיח ושידה|Tidy 
 CATEGORY|children-rooms|חדרי ילדים|Children's rooms
 CHORE|tidy-bedroom-floor-rugs|children-rooms|לסדר ריצפה ושטיחים|Tidy the floor and rugs|1
 CHORE|change-bed-linens|children-rooms|החלפת מצעים|Change the bed linens|1
+
+CATEGORY|kids-related|עינייני ילדים|Kids related
+CHORE|accompany-shalev-to-activity|kids-related|ללוות את שליו לחוג|Accompany Shalev to his activity|2
+
+CATEGORY|out-chore|מטלת חוץ|Out chore
+CHORE|buy-groceries|out-chore|קניית מצרכים|Buy groceries|1
+
+CATEGORY|whole-house|ברחבי הבית|All over the house
+CHORE|vacuum-carpets-and-run-robot-upstairs|whole-house|לשאוב את השטיחים ולהפעיל את הרובוט השואב בקומה העליונה|Vacuum the carpets and run the robot vacuum upstairs|3

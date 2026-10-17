@@ -38,14 +38,14 @@ class FamilyChoreGameApplicationTest {
 
     @Test
     void startupLoadsExpectedCatalogFromResourceFile() {
-        assertThat(repository.categories()).hasSize(7);
-        assertThat(repository.chores()).hasSize(28);
+        assertThat(repository.categories()).hasSize(10);
+        assertThat(repository.chores()).hasSize(35);
         assertThat(repository.chore("bathroom-counter")).get()
                 .extracting("nameHe", "nameEn", "points")
                 .containsExactly("לסדר ולנקות את השיש", "Tidy and clean the bathroom counter", 2);
         assertThat(repository.categories()).extracting("nameEn")
-                .containsExactly("Bathroom", "Children's rooms", "Dining and play areas", "Home entrance",
-                        "Kitchen", "Living room", "Toilets and laundry room");
+                .containsExactly("All over the house", "Bathroom", "Children's rooms", "Dining and play areas", "Home entrance",
+                        "Kids related", "Kitchen", "Living room", "Out chore", "Toilets and laundry room");
         assertThat(repository.chores()).extracting(chore -> chore.nameEn())
                 .isSortedAccordingTo(String.CASE_INSENSITIVE_ORDER);
         assertThat(repository.chores().stream()
@@ -57,7 +57,7 @@ class FamilyChoreGameApplicationTest {
                 "לפנות כיור:3",
                 "לנקות ולסדר שיש:2",
                 "להשתתף בהכנת ארוחה משפחתית:2",
-                "קניית מצרכים:1",
+                "להעמיס ולרוקן מדיח:3",
                 "לנקות כריים:1",
                 "להכין לחם:1",
                 "להכין סלט לארוחה משפחתית:2");

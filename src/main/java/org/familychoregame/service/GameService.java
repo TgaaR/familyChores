@@ -51,6 +51,11 @@ public class GameService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    public void clearAllData() {
+        repository.clearAllData();
+        LOGGER.atInfo().addKeyValue("event", "all_application_data_cleared")
+                .log("All application data cleared; migration history preserved");
+    }
     public Bootstrap bootstrap() {
         var family = repository.family();
         if (family.isEmpty()) {

@@ -75,8 +75,8 @@ class ApiFlowIntegrationTest {
                 .andExpect(jsonPath("$.familyId").value("default-family"))
                 .andExpect(jsonPath("$.familyName").value("API Test Family"))
                 .andExpect(jsonPath("$.timezone").value("Asia/Jerusalem"))
-                .andExpect(jsonPath("$.categories.length()").value(7))
-                .andExpect(jsonPath("$.chores.length()").value(28))
+                .andExpect(jsonPath("$.categories.length()").value(10))
+                .andExpect(jsonPath("$.chores.length()").value(35))
                 .andExpect(jsonPath("$.currentWeek.mode").value("execution"))
                 .andExpect(jsonPath("$.comingWeek.mode").value("planning"));
 

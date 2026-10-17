@@ -78,3 +78,42 @@ Docker must be running because integration and migration tests use an isolated P
 The suite covers fresh-install family onboarding, migrations and resource-file catalog loading, Jerusalem week boundaries, API validation, correlation IDs, safe error contracts,
 member normalization and archiving, assignment idempotency and uniqueness, concurrent assignment attempts,
 week-mode permissions, optimistic completion conflicts, scoring, point snapshots, and packaged PWA/service-worker contracts.
+
+## Full application data reset
+
+`DELETE /api/v1/data` permanently empties `assignments`, `right_redemptions`,
+`member_login_attempts`, `chores`, `chore_categories`, `rights`, `family_members`,
+and `families` in one PostgreSQL transaction. It preserves the tables themselves
+and all `schema_migrations` records. The endpoint requires a logged-in parent and
+a valid CSRF token, returns `204 No Content`, and logs the caller out only after
+success. Other sessions belonging to deleted members are invalidated on their
+next request. After a successful reset, reload the app to create a new family;
+the chore and rights catalogs are loaded again during family setup.
+
+To call it from the browser developer console while logged in as a parent:
+
+```javascript
+await fetch('/api/v1/session'); // Ensure the CSRF cookie is available.
+const csrfCookie = document.cookie.split('; ').find(value => value.startsWith('XSRF-TOKEN='));
+if (!csrfCookie) throw new Error('CSRF cookie unavailable');
+const response = await fetch('/api/v1/data', {
+  method: 'DELETE',
+  headers: { 'X-XSRF-TOKEN': decodeURIComponent(csrfCookie.slice('XSRF-TOKEN='.length)) }
+});
+if (response.status !== 204) throw new Error(`Reset failed: HTTP ${response.status}`);
+location.reload();
+```
+
+## Swagger API explorer
+
+Open http://localhost:8080/swagger-ui.html while the application is running.
+Expand an endpoint, select **Try it out**, fill in the request, and select **Execute**.
+Request and response schemas are included. The OpenAPI JSON is at `/v3/api-docs`.
+
+Log in through the main application in another tab using the same hostname, or
+call `GET /api/v1/login-members` and then `POST /api/v1/login` in Swagger.
+After login or logout, execute `GET /api/v1/session` to refresh the CSRF cookie.
+Swagger automatically sends the session cookie and CSRF header; do not enter a
+cookie manually in **Authorize**. On an empty database, complete family setup first.
+Parent-only endpoints require a parent session. The Administration section includes
+the permanent full-data reset endpoint, with its effects described explicitly.
